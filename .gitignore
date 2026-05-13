@@ -1,0 +1,94 @@
+# .gitignore - The Designated Driver
+
+# Unity-specific files
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Ll]og/
+
+# Generated files
+*.csproj
+*.sln
+*.unityproj
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.VC.db
+.vs/
+
+# Visual Studio cache/options
+.vs/
+.vscode/
+
+# Test results
+test-results/
+
+# Package files
+packages/
+.packages/
+
+# Local environment files
+.env
+.env.local
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Cache files
+*.cache
+.cache/
+
+# User-specific files (if any)
+UserSettings/
+
+# Ignore actual asset files (add later when available)
+# Assets/Sprites/*.png
+# Assets/Audio/*.mp3
+
+# But keep script files
+!Assets/Scripts/**
+
+# Temporary build files
+Artifacts/
+dist/
+bin/
+obj/
+*.exe
+*.dll
+
+# Rider/IntelliJ
+.idea/
+.idea_modules/
+
+# Jetbrains Resharper
+_ReSharper*/
+*.DotSettings.user
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+
+# Project files
+*.csproj.user
+*.vcxproj.user
+
+# Compiled Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Node modules (if any)
+node_modules/
