@@ -1,11 +1,13 @@
 using UnityEngine;
 
+
 public partial class PlayerMovement : MonoBehaviour
 {
     public float speed = 5f;
     private Rigidbody2D rb;
     private Vector2 inputDirection;
-
+    public bool controlesInvertidos = false;
+    
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -17,6 +19,16 @@ public partial class PlayerMovement : MonoBehaviour
         float moveX = Input.GetAxisRaw("Horizontal");
         float moveY = Input.GetAxisRaw("Vertical");
         inputDirection = new Vector2(moveX, moveY).normalized;
+        // Creamos la dirección base
+        Vector2 direccionFinal = new Vector2(moveX, moveY);
+
+         // Si el personaje está bajo el efecto del glitch, damos vuelta el vector
+         if (controlesInvertidos){
+            direccionFinal = -direccionFinal;
+        }
+
+        // Finalmente normalizamos para que no camine más rápido en diagonal
+        inputDirection = direccionFinal.normalized;
     }
 
     void FixedUpdate()
