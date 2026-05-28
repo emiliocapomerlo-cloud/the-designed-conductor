@@ -19,6 +19,24 @@ public class ControladorPaisaje : MonoBehaviour
     private Vector2 posicionInicialCabina;
     private float avanceAcumulado;
     private float desplazamientoHorizontal;
+    private float multiplicadorFuerzaGiro = 1f;
+    private float multiplicadorVibracion = 1f;
+    private float derivaInvoluntaria;
+    private float oscilacionVolante;
+    private float tiempoEfectoDecision;
+    private float duracionEfectoDecision;
+    private float multiplicadorVelocidad = 1f;
+    private float multiplicadorLimiteCamino = 1f;
+    private float respuestaVolante = 1f;
+    private float pulsoVelocidad;
+    private float sacudidaCabina;
+    private float rotacionVolanteFiltrada;
+    private string nombreEfectoDecision = "";
+
+    public bool HayEfectoDecision => tiempoEfectoDecision > 0f;
+    public float ProgresoEfectoDecision => duracionEfectoDecision <= 0f ? 0f : tiempoEfectoDecision / duracionEfectoDecision;
+    public float SegundosRestantesEfecto => tiempoEfectoDecision;
+    public string NombreEfectoDecision => nombreEfectoDecision;
 
     private void Start()
     {
@@ -39,19 +57,117 @@ public class ControladorPaisaje : MonoBehaviour
 
         float factorMarcha = palanca.enMarchaAdelante ? 1f : -1f;
         float rotacionVolante = Mathf.DeltaAngle(0f, volante.transform.eulerAngles.z);
-        float avanceFrame = velocidadAuto * factorMarcha * Time.deltaTime;
+        rotacionVolanteFiltrada = Mathf.Lerp(rotacionVolanteFiltrada, rotacionVolante, Mathf.Clamp01(respuestaVolante * Time.deltaTime * 12f));
+        float rotacionBase = respuestaVolante >= 0.99f ? rotacionVolante : rotacionVolanteFiltrada;
+        float rotacionAfectada = CalcularRotacionAfectada(rotacionBase);
+        float velocidadConPulso = velocidadAuto * multiplicadorVelocidad * CalcularPulsoVelocidad();
+        float avanceFrame = velocidadConPulso * factorMarcha * Time.deltaTime;
+        float limiteActual = limiteHorizontalCamino * multiplicadorLimiteCamino;
 
         avanceAcumulado += avanceFrame;
         desplazamientoHorizontal = Mathf.Clamp(
-            desplazamientoHorizontal + rotacionVolante * fuerzaGiro * factorMarcha * Time.deltaTime,
-            -limiteHorizontalCamino,
-            limiteHorizontalCamino
+            desplazamientoHorizontal + rotacionAfectada * fuerzaGiro * multiplicadorFuerzaGiro * factorMarcha * Time.deltaTime + CalcularDerivaFrame(),
+            -limiteActual,
+            limiteActual
         );
 
         ActualizarCaminoPerspectiva();
         SincronizarCalles();
 
-        VibrarCabina(rotacionVolante);
+        VibrarCabina(rotacionAfectada);
+        ActualizarEfectoDecision();
+    }
+
+    public void AplicarEfectoDecision(float duracion, float nuevoMultiplicadorGiro, float nuevoMultiplicadorVibracion, float nuevaDerivaInvoluntaria, float nuevaOscilacionVolante)
+    {
+        AplicarEfectoDecision("Control alterado", duracion, nuevoMultiplicadorGiro, nuevoMultiplicadorVibracion, nuevaDerivaInvoluntaria, nuevaOscilacionVolante, 1f, 1f, 1f, 0f, 0f);
+    }
+
+    public void AplicarEfectoDecision(string nombreEfecto, float duracion, float nuevoMultiplicadorGiro, float nuevoMultiplicadorVibracion, float nuevaDerivaInvoluntaria, float nuevaOscilacionVolante, float nuevoMultiplicadorVelocidad, float nuevoMultiplicadorLimiteCamino)
+    {
+        AplicarEfectoDecision(nombreEfecto, duracion, nuevoMultiplicadorGiro, nuevoMultiplicadorVibracion, nuevaDerivaInvoluntaria, nuevaOscilacionVolante, nuevoMultiplicadorVelocidad, nuevoMultiplicadorLimiteCamino, 1f, 0f, 0f);
+    }
+
+    public void AplicarEfectoDecision(string nombreEfecto, float duracion, float nuevoMultiplicadorGiro, float nuevoMultiplicadorVibracion, float nuevaDerivaInvoluntaria, float nuevaOscilacionVolante, float nuevoMultiplicadorVelocidad, float nuevoMultiplicadorLimiteCamino, float nuevaRespuestaVolante, float nuevoPulsoVelocidad, float nuevaSacudidaCabina)
+    {
+        duracionEfectoDecision = Mathf.Max(0f, duracion);
+        tiempoEfectoDecision = duracionEfectoDecision;
+        multiplicadorFuerzaGiro = Mathf.Max(0f, nuevoMultiplicadorGiro);
+        multiplicadorVibracion = Mathf.Max(0f, nuevoMultiplicadorVibracion);
+        derivaInvoluntaria = Mathf.Max(0f, nuevaDerivaInvoluntaria);
+        oscilacionVolante = Mathf.Max(0f, nuevaOscilacionVolante);
+        multiplicadorVelocidad = Mathf.Max(0f, nuevoMultiplicadorVelocidad);
+        multiplicadorLimiteCamino = Mathf.Max(0.1f, nuevoMultiplicadorLimiteCamino);
+        respuestaVolante = Mathf.Max(0.02f, nuevaRespuestaVolante);
+        pulsoVelocidad = Mathf.Max(0f, nuevoPulsoVelocidad);
+        sacudidaCabina = Mathf.Max(0f, nuevaSacudidaCabina);
+        rotacionVolanteFiltrada = Mathf.DeltaAngle(0f, volante != null ? volante.transform.eulerAngles.z : 0f);
+        nombreEfectoDecision = string.IsNullOrEmpty(nombreEfecto) ? "Control alterado" : nombreEfecto;
+    }
+
+    private float CalcularRotacionAfectada(float rotacionVolante)
+    {
+        if (!HayEfectoDecision || oscilacionVolante <= 0f)
+        {
+            return rotacionVolante;
+        }
+
+        float ruidoLento = (Mathf.PerlinNoise(Time.time * 1.7f, 7.3f) - 0.5f) * oscilacionVolante;
+        float bamboleo = Mathf.Sin(Time.time * 5.5f) * oscilacionVolante * 0.35f;
+        return rotacionVolante + ruidoLento + bamboleo;
+    }
+
+    private float CalcularDerivaFrame()
+    {
+        if (!HayEfectoDecision || derivaInvoluntaria <= 0f)
+        {
+            return 0f;
+        }
+
+        float direccion = Mathf.Sin(Time.time * 2.1f) + (Mathf.PerlinNoise(Time.time * 1.2f, 11f) - 0.5f);
+        return direccion * derivaInvoluntaria * Time.deltaTime;
+    }
+
+    private float CalcularPulsoVelocidad()
+    {
+        if (!HayEfectoDecision || pulsoVelocidad <= 0f)
+        {
+            return 1f;
+        }
+
+        float pulso = Mathf.Sin(Time.time * 7.5f) * 0.5f + (Mathf.PerlinNoise(Time.time * 4f, 19f) - 0.5f);
+        return Mathf.Max(0.1f, 1f + pulso * pulsoVelocidad);
+    }
+
+    private void ActualizarEfectoDecision()
+    {
+        if (!HayEfectoDecision)
+        {
+            return;
+        }
+
+        tiempoEfectoDecision -= Time.deltaTime;
+
+        if (tiempoEfectoDecision <= 0f)
+        {
+            tiempoEfectoDecision = 0f;
+            duracionEfectoDecision = 0f;
+            multiplicadorFuerzaGiro = 1f;
+            multiplicadorVibracion = 1f;
+            derivaInvoluntaria = 0f;
+            oscilacionVolante = 0f;
+            multiplicadorVelocidad = 1f;
+            multiplicadorLimiteCamino = 1f;
+            respuestaVolante = 1f;
+            pulsoVelocidad = 0f;
+            sacudidaCabina = 0f;
+            nombreEfectoDecision = "";
+
+            if (cabina != null)
+            {
+                cabina.anchoredPosition = posicionInicialCabina;
+            }
+        }
     }
 
     private void ActualizarCaminoPerspectiva()
@@ -83,14 +199,21 @@ public class ControladorPaisaje : MonoBehaviour
 
     private void VibrarCabina(float rotacionVolante)
     {
-        if (cabina == null || intensidadVibracionCabina <= 0f)
+        if (cabina == null || (intensidadVibracionCabina <= 0f && !HayEfectoDecision))
         {
             return;
         }
 
+        float intensidadBase = intensidadVibracionCabina;
+        if (HayEfectoDecision && intensidadBase <= 0f)
+        {
+            intensidadBase = 3f;
+        }
+
         float ruido = Mathf.PerlinNoise(Time.time * 12f, 0f) - 0.5f;
+        float sacudida = HayEfectoDecision ? Mathf.Sin(Time.time * 22f) * sacudidaCabina : 0f;
         float giroNormalizado = Mathf.Clamp(rotacionVolante / 90f, -1f, 1f);
-        Vector2 vibracion = new Vector2(giroNormalizado * 2f, ruido * intensidadVibracionCabina);
+        Vector2 vibracion = new Vector2(giroNormalizado * 2f + sacudida * 0.35f, ruido * intensidadBase * multiplicadorVibracion + sacudida);
         cabina.anchoredPosition = posicionInicialCabina + vibracion;
     }
 }
