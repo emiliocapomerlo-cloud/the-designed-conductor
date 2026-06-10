@@ -31,8 +31,7 @@
 # Test results
 test-results/
 
-# Package files
-packages/
+# Unity package manifests must be versioned
 .packages/
 
 # Local environment files

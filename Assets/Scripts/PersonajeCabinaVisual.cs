@@ -1,10 +1,18 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 public class PersonajeCabinaVisual : MaskableGraphic
 {
+    [FormerlySerializedAs("colorCabeza")]
     [SerializeField] private Color colorPiel = new Color(0.58f, 0.28f, 0.12f, 1f);
+
+    [FormerlySerializedAs("colorTorso")]
     [SerializeField] private Color colorRopa = new Color(0.12f, 0.2f, 0.48f, 1f);
+
+    [FormerlySerializedAs("colorBrazo")]
+    [SerializeField] private Color colorBrazos = new Color(0.45f, 0.2f, 0.08f, 1f);
+
     [SerializeField] private Color colorCabello = new Color(0.06f, 0.035f, 0.02f, 1f);
     [SerializeField] private Color colorDetalleRopa = new Color(0.93f, 0.88f, 0.72f, 1f);
     [SerializeField] private bool mirandoIzquierda;
@@ -155,10 +163,10 @@ public class PersonajeCabinaVisual : MaskableGraphic
     {
         DibujarSegmento(new Vector2(72f, 102f), new Vector2(42f, 50f), 13f, colorRopa * 0.9f);
         DibujarSegmento(new Vector2(184f, 102f), new Vector2(214f, 50f), 13f, colorRopa * 0.9f);
-        DibujarSegmento(new Vector2(42f, 50f), new Vector2(72f, 35f), 10f, colorPiel * 0.95f);
-        DibujarSegmento(new Vector2(214f, 50f), new Vector2(184f, 35f), 10f, colorPiel * 0.95f);
-        DibujarElipse(new Vector2(73f, 34f), 14f, 10f, colorPiel);
-        DibujarElipse(new Vector2(183f, 34f), 14f, 10f, colorPiel);
+        DibujarSegmento(new Vector2(42f, 50f), new Vector2(72f, 35f), 10f, colorBrazos * 0.95f);
+        DibujarSegmento(new Vector2(214f, 50f), new Vector2(184f, 35f), 10f, colorBrazos * 0.95f);
+        DibujarElipse(new Vector2(73f, 34f), 14f, 10f, colorBrazos);
+        DibujarElipse(new Vector2(183f, 34f), 14f, 10f, colorBrazos);
     }
 
     private void DibujarCabeza()

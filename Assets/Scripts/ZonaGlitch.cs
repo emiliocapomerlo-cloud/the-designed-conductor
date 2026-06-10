@@ -3,46 +3,88 @@ using UnityEngine;
 
 public class ZonaGlitch : MonoBehaviour
 {
-    [SerializeField] private float duracionEfecto = 3f; // Cuánto dura el mareo
+    private const string RutaSpriteMesa = "Objetos/MesaBebidas";
 
-    private void OnTriggerEnter2D(Collider2D other)
+    [SerializeField] private float duracionEfecto = 3f;
+    [SerializeField] private int ordenVisual = -1;
+
+    private GameObject visualMesa;
+
+    private void Awake()
     {
-        if (other.CompareTag("Player"))
-        {
-            // Buscamos el componente de movimiento del jugador
-            PlayerMovement movimiento = other.GetComponent<PlayerMovement>();
+        OcultarBloqueAmarillo();
+        CrearVisualMesa();
+    }
 
-            if (movimiento != null && !movimiento.controlesInvertidos)
-            {
-                Debug.Log("¡Pisaste un Glitch! Controles invertidos...");
-                StartCoroutine(AplicarGlitch(movimiento));
-            }
+    private void OnDestroy()
+    {
+        if (visualMesa != null)
+        {
+            Destroy(visualMesa);
         }
     }
 
-    // Rutina de tiempo para activar y desactivar el efecto sola
-    private IEnumerator AplicarGlitch(PlayerMovement mov)
+    private void OnTriggerEnter2D(Collider2D other)
     {
-        mov.controlesInvertidos = true;
+        if (!other.CompareTag("Player"))
+        {
+            return;
+        }
 
-        // Opcional: Podés cambiar el color del player a rojo temporalmente para dar feedback
-        SpriteRenderer renderer = mov.GetComponent<SpriteRenderer>();
+        PlayerMovement movimiento = other.GetComponent<PlayerMovement>();
+        if (movimiento != null && !movimiento.controlesInvertidos)
+        {
+            Debug.Log("Tomaste una bebida de la mesa. Controles invertidos...");
+            StartCoroutine(AplicarGlitch(movimiento));
+        }
+    }
+
+    private void OcultarBloqueAmarillo()
+    {
+        Renderer[] renderers = GetComponents<Renderer>();
+        foreach (Renderer renderer in renderers)
+        {
+            renderer.enabled = false;
+        }
+    }
+
+    private void CrearVisualMesa()
+    {
+        Sprite[] sprites = Resources.LoadAll<Sprite>(RutaSpriteMesa);
+        if (sprites.Length == 0)
+        {
+            Debug.LogWarning("No se encontro el sprite de la mesa de bebidas.");
+            return;
+        }
+
+        visualMesa = new GameObject(name + "_VisualMesa");
+        visualMesa.transform.position = new Vector3(transform.position.x, transform.position.y, -0.1f);
+
+        SpriteRenderer spriteRenderer = visualMesa.AddComponent<SpriteRenderer>();
+        spriteRenderer.sprite = sprites[0];
+        spriteRenderer.sortingOrder = ordenVisual;
+    }
+
+    private IEnumerator AplicarGlitch(PlayerMovement movimiento)
+    {
+        movimiento.controlesInvertidos = true;
+
+        SpriteRenderer renderer = movimiento.GetComponent<SpriteRenderer>();
         Color colorOriginal = Color.white;
         if (renderer != null)
         {
             colorOriginal = renderer.color;
-            renderer.color = Color.red; // Se pone rojo de bug
+            renderer.color = Color.red;
         }
 
-        // Esperamos los segundos configurados
         yield return new WaitForSeconds(duracionEfecto);
 
-        // Devolvemos todo a la normalidad
-        mov.controlesInvertidos = false;
+        movimiento.controlesInvertidos = false;
         if (renderer != null)
         {
             renderer.color = colorOriginal;
         }
-        Debug.Log("Efecto Glitch terminado. Controles normales.");
+
+        Debug.Log("Efecto de la bebida terminado. Controles normales.");
     }
 }

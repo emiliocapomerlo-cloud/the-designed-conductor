@@ -5,39 +5,47 @@ public class ControlarAuto : MonoBehaviour
 {
     [SerializeField] private string nombreEscenaManejo = "EscenaManejo";
     [SerializeField] private int amigosRequeridos = 4;
+    [SerializeField] private Vector2 tamanoZonaInteraccion = new Vector2(2.2f, 1.1f);
+
+    private void Awake()
+    {
+        BoxCollider2D zonaInteraccion = GetComponent<BoxCollider2D>();
+        if (zonaInteraccion != null)
+        {
+            zonaInteraccion.isTrigger = true;
+            zonaInteraccion.offset = Vector2.zero;
+            zonaInteraccion.size = tamanoZonaInteraccion;
+        }
+    }
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        // Si el que toca el auto es el jugador
-        if (other.CompareTag("Player"))
+        if (!other.CompareTag("Player"))
         {
-            // Buscamos todos los scripts 'FollowPlayer' que haya en la escena
-            FollowPlayer[] todosLosAmigos = FindObjectsByType<FollowPlayer>(FindObjectsSortMode.None);
-            
-            int amigosSiguiendo = 0;
+            return;
+        }
 
-            // Recorremos cada amigo y chequeamos tu variable 'isFollowing'
-            foreach (FollowPlayer amigo in todosLosAmigos)
-            {
-                if (amigo.isFollowing) 
-                {
-                    amigosSiguiendo++;
-                }
-            }
+        FollowPlayer[] todosLosAmigos = FindObjectsByType<FollowPlayer>(FindObjectsSortMode.None);
+        int amigosSiguiendo = 0;
 
-            Debug.Log("Intentando subir al auto. Amigos listos: " + amigosSiguiendo + " de " + amigosRequeridos);
-
-            // Si están los 4, avanzamos de fase
-            if (amigosSiguiendo >= amigosRequeridos)
+        foreach (FollowPlayer amigo in todosLosAmigos)
+        {
+            if (amigo.isFollowing)
             {
-                Debug.Log("¡La banda está completa! Cargando la escena de manejo...");
-                SceneManager.LoadScene(nombreEscenaManejo);
-            }
-            else
-            {
-                int faltantes = amigosRequeridos - amigosSiguiendo;
-                Debug.Log("No podés irte todavía. Te faltan " + faltantes + " integrantes del grupo.");
+                amigosSiguiendo++;
             }
         }
+
+        Debug.Log("Intentando subir al auto. Amigos listos: " + amigosSiguiendo + " de " + amigosRequeridos);
+
+        if (amigosSiguiendo >= amigosRequeridos)
+        {
+            Debug.Log("La banda esta completa. Cargando la escena de manejo...");
+            SceneManager.LoadScene(nombreEscenaManejo);
+            return;
+        }
+
+        int faltantes = amigosRequeridos - amigosSiguiendo;
+        Debug.Log("No podes irte todavia. Te faltan " + faltantes + " integrantes del grupo.");
     }
 }
