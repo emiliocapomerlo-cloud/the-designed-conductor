@@ -25,6 +25,7 @@ public class ControladorEventosDecision : MonoBehaviour
         public string texto;
         public EfectoManejo efecto;
         public bool aplicaEfecto;
+        public float alcohol;
     }
 
     private struct EventoDecision
@@ -139,6 +140,7 @@ public class ControladorEventosDecision : MonoBehaviour
                 "Tu amigo te ofrece una cerveza antes de seguir manejando.",
                 "Aceptar",
                 Efecto("Reflejos alterados", 15f, 1.45f, 2.2f, 105f, 28f, 1f, 1f, 0.9f, 0f, 1f),
+                45f,
                 "Rechazar",
                 SinEfecto()
             ),
@@ -175,19 +177,25 @@ public class ControladorEventosDecision : MonoBehaviour
 
     private EventoDecision NuevoEvento(string texto, string textoA, EfectoManejo efectoA, string textoB, EfectoManejo efectoB)
     {
+        return NuevoEvento(texto, textoA, efectoA, 0f, textoB, efectoB);
+    }
+
+    private EventoDecision NuevoEvento(string texto, string textoA, EfectoManejo efectoA, float alcoholA, string textoB, EfectoManejo efectoB)
+    {
         EventoDecision evento = new EventoDecision();
         evento.texto = texto;
-        evento.opcionA = NuevaOpcion(textoA, efectoA);
-        evento.opcionB = NuevaOpcion(textoB, efectoB);
+        evento.opcionA = NuevaOpcion(textoA, efectoA, alcoholA);
+        evento.opcionB = NuevaOpcion(textoB, efectoB, 0f);
         return evento;
     }
 
-    private OpcionDecision NuevaOpcion(string texto, EfectoManejo efecto)
+    private OpcionDecision NuevaOpcion(string texto, EfectoManejo efecto, float alcohol)
     {
         OpcionDecision opcion = new OpcionDecision();
         opcion.texto = texto;
         opcion.efecto = efecto;
         opcion.aplicaEfecto = efecto.duracion > 0f;
+        opcion.alcohol = alcohol;
         return opcion;
     }
 
@@ -264,6 +272,11 @@ public class ControladorEventosDecision : MonoBehaviour
 
         esperandoDecision = false;
         OcultarEvento();
+
+        if (opcion.alcohol > 0f && ControladorFinJuego.Instancia != null)
+        {
+            ControladorFinJuego.Instancia.SumarAlcohol(opcion.alcohol);
+        }
 
         if (opcion.aplicaEfecto && paisaje != null)
         {

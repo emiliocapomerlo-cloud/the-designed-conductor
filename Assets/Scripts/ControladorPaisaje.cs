@@ -38,6 +38,24 @@ public class ControladorPaisaje : MonoBehaviour
     public float SegundosRestantesEfecto => tiempoEfectoDecision;
     public string NombreEfectoDecision => nombreEfectoDecision;
 
+    // Distancia total recorrida hacia adelante (sirve para saber si llegamos a casa).
+    public float AvanceAcumulado => avanceAcumulado;
+
+    // Qué tan pegado al borde del camino está el auto (0 = centrado, 1 = contra el borde).
+    public float DesvioNormalizado
+    {
+        get
+        {
+            float limiteActual = limiteHorizontalCamino * multiplicadorLimiteCamino;
+            if (limiteActual <= 0f)
+            {
+                return 0f;
+            }
+
+            return Mathf.Clamp01(Mathf.Abs(desplazamientoHorizontal) / limiteActual);
+        }
+    }
+
     private void Start()
     {
         if (cabina != null)
