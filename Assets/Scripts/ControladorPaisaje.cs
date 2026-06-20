@@ -31,12 +31,15 @@ public class ControladorPaisaje : MonoBehaviour
     private float pulsoVelocidad;
     private float sacudidaCabina;
     private float rotacionVolanteFiltrada;
+    private float velocidadActual;
     private string nombreEfectoDecision = "";
 
     public bool HayEfectoDecision => tiempoEfectoDecision > 0f;
     public float ProgresoEfectoDecision => duracionEfectoDecision <= 0f ? 0f : tiempoEfectoDecision / duracionEfectoDecision;
     public float SegundosRestantesEfecto => tiempoEfectoDecision;
     public string NombreEfectoDecision => nombreEfectoDecision;
+    public float VelocidadActual => velocidadActual;
+    public float VelocidadMaximaVisual => Mathf.Max(1f, velocidadAuto * 1.5f);
 
     // Distancia total recorrida hacia adelante (sirve para saber si llegamos a casa).
     public float AvanceAcumulado => avanceAcumulado;
@@ -58,6 +61,8 @@ public class ControladorPaisaje : MonoBehaviour
 
     private void Start()
     {
+        CabinaEnviroBootstrap.AplicarVisualCabina();
+
         if (cabina != null)
         {
             posicionInicialCabina = cabina.anchoredPosition;
@@ -70,6 +75,7 @@ public class ControladorPaisaje : MonoBehaviour
     {
         if (volante == null || palanca == null || calle1 == null || calle2 == null)
         {
+            velocidadActual = 0f;
             return;
         }
 
@@ -79,6 +85,7 @@ public class ControladorPaisaje : MonoBehaviour
         float rotacionBase = respuestaVolante >= 0.99f ? rotacionVolante : rotacionVolanteFiltrada;
         float rotacionAfectada = CalcularRotacionAfectada(rotacionBase);
         float velocidadConPulso = velocidadAuto * multiplicadorVelocidad * CalcularPulsoVelocidad();
+        velocidadActual = Mathf.Abs(velocidadConPulso);
         float avanceFrame = velocidadConPulso * factorMarcha * Time.deltaTime;
         float limiteActual = limiteHorizontalCamino * multiplicadorLimiteCamino;
 

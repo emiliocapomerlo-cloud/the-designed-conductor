@@ -152,6 +152,7 @@ public class ControladorFinJuego : MonoBehaviour
 
         if (panelFinal != null)
         {
+            panelFinal.transform.SetAsLastSibling();
             panelFinal.SetActive(true);
         }
 

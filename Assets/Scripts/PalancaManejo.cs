@@ -10,8 +10,8 @@ public class PalancaManejo : MonoBehaviour, IPointerClickHandler
     private RectTransform rectTransform;
     
     // Guardamos las posiciones locales en Y para el movimiento visual
-    private float posicionDriveY = -300f;
-    private float posicionReverseY = -330f;
+    private float posicionDriveY = -235f;
+    private float posicionReverseY = -275f;
 
     void Start()
     {
