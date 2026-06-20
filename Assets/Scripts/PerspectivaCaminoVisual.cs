@@ -28,6 +28,14 @@ public class PerspectivaCaminoVisual : MaskableGraphic
         SetVerticesDirty();
     }
 
+    public void ConfigurarEncuadreCabina(float nuevoAnchoHorizonte, float nuevoAnchoFrente, float nuevaAlturaHorizonte)
+    {
+        anchoHorizonte = Mathf.Clamp(nuevoAnchoHorizonte, 0.05f, 0.45f);
+        anchoFrente = Mathf.Clamp(nuevoAnchoFrente, 0.4f, 1f);
+        alturaHorizonte = Mathf.Clamp(nuevaAlturaHorizonte, 0.45f, 0.85f);
+        SetVerticesDirty();
+    }
+
     protected override void OnPopulateMesh(VertexHelper vh)
     {
         vh.Clear();
