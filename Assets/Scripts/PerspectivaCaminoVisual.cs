@@ -8,6 +8,9 @@ public class PerspectivaCaminoVisual : MaskableGraphic
     [SerializeField] private Color colorBanquina = new Color(0.18f, 0.48f, 0.12f, 1f);
     [SerializeField] private Color colorCamino = new Color(0.12f, 0.12f, 0.13f, 1f);
     [SerializeField] private Color colorLinea = new Color(0.95f, 0.82f, 0.12f, 1f);
+    [SerializeField] private Color colorCaminoTierra = new Color(0.46f, 0.29f, 0.16f, 1f);
+    [SerializeField] private Color colorBanquinaTierra = new Color(0.62f, 0.39f, 0.2f, 1f);
+    [SerializeField] private Color colorLineaTierra = new Color(0.9f, 0.71f, 0.18f, 1f);
 
     [Range(0.05f, 0.45f)]
     [SerializeField] private float anchoHorizonte = 0.16f;
@@ -20,6 +23,7 @@ public class PerspectivaCaminoVisual : MaskableGraphic
 
     private float avance;
     private float desvioHorizontal;
+    private bool usarSuperficieTierra;
 
     public void ActualizarMovimiento(float nuevoAvance, float nuevoDesvioHorizontal)
     {
@@ -33,6 +37,12 @@ public class PerspectivaCaminoVisual : MaskableGraphic
         anchoHorizonte = Mathf.Clamp(nuevoAnchoHorizonte, 0.05f, 0.45f);
         anchoFrente = Mathf.Clamp(nuevoAnchoFrente, 0.4f, 1f);
         alturaHorizonte = Mathf.Clamp(nuevaAlturaHorizonte, 0.45f, 0.85f);
+        SetVerticesDirty();
+    }
+
+    public void SetModoSuperficie(bool usarTierra)
+    {
+        usarSuperficieTierra = usarTierra;
         SetVerticesDirty();
     }
 
@@ -50,8 +60,12 @@ public class PerspectivaCaminoVisual : MaskableGraphic
         float center = Mathf.Lerp(left, right, 0.5f) + desvioHorizontal;
         float horizonY = Mathf.Lerp(bottom, top, alturaHorizonte);
 
+        Color banquinaActual = usarSuperficieTierra ? colorBanquinaTierra : colorBanquina;
+        Color caminoActual = usarSuperficieTierra ? colorCaminoTierra : colorCamino;
+        Color lineaActual = usarSuperficieTierra ? colorLineaTierra : colorLinea;
+
         AddQuad(vh, new Vector2(left, horizonY), new Vector2(right, horizonY), new Vector2(right, top), new Vector2(left, top), colorCielo);
-        AddQuad(vh, new Vector2(left, bottom), new Vector2(right, bottom), new Vector2(right, horizonY), new Vector2(left, horizonY), colorBanquina);
+        AddQuad(vh, new Vector2(left, bottom), new Vector2(right, bottom), new Vector2(right, horizonY), new Vector2(left, horizonY), banquinaActual);
 
         AddJaggedTreeLine(vh, rect, horizonY);
 
@@ -61,9 +75,9 @@ public class PerspectivaCaminoVisual : MaskableGraphic
         Vector2 roadTopRight = new Vector2(center + topHalf, horizonY);
         Vector2 roadBottomRight = new Vector2(center + bottomHalf, bottom);
         Vector2 roadBottomLeft = new Vector2(center - bottomHalf, bottom);
-        AddQuad(vh, roadBottomLeft, roadBottomRight, roadTopRight, roadTopLeft, colorCamino);
+        AddQuad(vh, roadBottomLeft, roadBottomRight, roadTopRight, roadTopLeft, caminoActual);
 
-        AddPerspectiveStripes(vh, center, bottom, horizonY, width, height);
+        AddPerspectiveStripes(vh, center, bottom, horizonY, width, height, lineaActual);
     }
 
     private void AddJaggedTreeLine(VertexHelper vh, Rect rect, float horizonY)
@@ -82,7 +96,7 @@ public class PerspectivaCaminoVisual : MaskableGraphic
         }
     }
 
-    private void AddPerspectiveStripes(VertexHelper vh, float center, float bottom, float horizonY, float width, float height)
+    private void AddPerspectiveStripes(VertexHelper vh, float center, float bottom, float horizonY, float width, float height, Color colorLineaActual)
     {
         int stripeCount = 9;
         float scroll = Mathf.Repeat(avance * 0.0025f, 1f);
@@ -106,7 +120,7 @@ public class PerspectivaCaminoVisual : MaskableGraphic
             Vector2 b = new Vector2(center + stripeNear * 0.5f + xNearOffset, yNear);
             Vector2 c = new Vector2(center + stripeFar * 0.5f + xFarOffset, yFar);
             Vector2 d = new Vector2(center - stripeFar * 0.5f + xFarOffset, yFar);
-            AddQuad(vh, a, b, c, d, colorLinea);
+            AddQuad(vh, a, b, c, d, colorLineaActual);
         }
     }
 

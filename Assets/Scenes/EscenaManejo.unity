@@ -714,6 +714,9 @@ MonoBehaviour:
   colorBanquina: {r: 0.18, g: 0.48, b: 0.12, a: 1}
   colorCamino: {r: 0.12, g: 0.12, b: 0.13, a: 1}
   colorLinea: {r: 0.95, g: 0.82, b: 0.12, a: 1}
+  colorCaminoTierra: {r: 0.46, g: 0.29, b: 0.16, a: 1}
+  colorBanquinaTierra: {r: 0.62, g: 0.39, b: 0.2, a: 1}
+  colorLineaTierra: {r: 0.9, g: 0.71, b: 0.18, a: 1}
   anchoHorizonte: 0.12
   anchoFrente: 0.82
   alturaHorizonte: 0.74
@@ -762,9 +765,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  colorCabeza: {r: 0.58, g: 0.28, b: 0.12, a: 1}
-  colorTorso: {r: 0.35, g: 0.14, b: 0.045, a: 1}
-  colorBrazo: {r: 0.45, g: 0.2, b: 0.08, a: 1}
+  colorPiel: {r: 0.58, g: 0.28, b: 0.12, a: 1}
+  colorRopa: {r: 0.35, g: 0.14, b: 0.045, a: 1}
+  colorBrazos: {r: 0.45, g: 0.2, b: 0.08, a: 1}
   colorCabello: {r: 0.06, g: 0.035, b: 0.02, a: 1}
   colorDetalleRopa: {r: 0.93, g: 0.88, b: 0.72, a: 1}
   mirandoIzquierda: 0
@@ -791,9 +794,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  colorCabeza: {r: 0.58, g: 0.28, b: 0.12, a: 1}
-  colorTorso: {r: 0.11, g: 0.2, b: 0.48, a: 1}
-  colorBrazo: {r: 0.45, g: 0.2, b: 0.08, a: 1}
+  colorPiel: {r: 0.58, g: 0.28, b: 0.12, a: 1}
+  colorRopa: {r: 0.11, g: 0.2, b: 0.48, a: 1}
+  colorBrazos: {r: 0.45, g: 0.2, b: 0.08, a: 1}
   colorCabello: {r: 0.06, g: 0.035, b: 0.02, a: 1}
   colorDetalleRopa: {r: 0.93, g: 0.88, b: 0.72, a: 1}
   mirandoIzquierda: 1
@@ -977,6 +980,53 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
+--- !u!1 &586737657
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 586737659}
+  - component: {fileID: 586737658}
+  m_Layer: 0
+  m_Name: ManejadorCerveza
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &586737658
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 586737657}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea23b28205c529742a298d119a1b102b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ManejadorCervezaAutomatico
+  duracionAnimacion: 0.65
+  alturaArco: 95
+  posicionPiso: {x: 0, y: -220}
+--- !u!4 &586737659
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 586737657}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 6.6327, y: -3.90513, z: -3.89911}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1443862963
 GameObject:
   m_ObjectHideFlags: 0
@@ -1040,7 +1090,6 @@ MonoBehaviour:
   colorMarco: {r: 0.26, g: 0.09, b: 0.025, a: 1}
   colorMarcoOscuro: {r: 0.13, g: 0.035, b: 0.012, a: 1}
   colorMetal: {r: 0.48, g: 0.5, b: 0.48, a: 1}
-  colorAmarillo: {r: 0.9, g: 0.77, b: 0.06, a: 1}
   colorHueso: {r: 0.86, g: 0.82, b: 0.78, a: 1}
 --- !u!222 &1443862966
 CanvasRenderer:
@@ -1402,3 +1451,4 @@ SceneRoots:
   - {fileID: 1699375362}
   - {fileID: 435212321}
   - {fileID: 417396702}
+  - {fileID: 586737659}

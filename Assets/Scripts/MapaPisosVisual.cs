@@ -12,10 +12,23 @@ public static class MapaPisosVisual
     private const float AspectoMaximoCubierto = 4f;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-    private static void CrearPisos()
+    private static void IniciarAutomaticamente()
     {
-        if (SceneManager.GetActiveScene().name != NombreEscena ||
+        SceneManager.sceneLoaded -= CrearPisos;
+        SceneManager.sceneLoaded += CrearPisos;
+        CrearPisos(SceneManager.GetActiveScene(), LoadSceneMode.Single);
+    }
+
+    private static void CrearPisos(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name != NombreEscena ||
             GameObject.Find(NombreContenedor) != null)
+        {
+            return;
+        }
+
+        // Evitamos que esta utilidad afecte a la escena de manejo del juego.
+        if (scene.name == "EscenaManejo")
         {
             return;
         }

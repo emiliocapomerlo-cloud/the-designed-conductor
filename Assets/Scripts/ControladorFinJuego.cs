@@ -14,7 +14,7 @@ public class ControladorFinJuego : MonoBehaviour
     [Tooltip("Tiempo maximo de la partida en segundos (2 minutos = 120).")]
     [SerializeField] private float duracionPartidaSegundos = 120f;
     [Tooltip("Distancia que hay que recorrer hacia adelante para llegar a casa.")]
-    [SerializeField] private float distanciaParaLlegarACasa = 20000f;
+    [SerializeField] private float distanciaParaLlegarACasa = 60000f;
 
     [Header("Condiciones de ACCIDENTE GRAVE (corta el juego)")]
     [Tooltip("Nivel de alcohol a partir del cual el conductor pierde el control.")]
@@ -90,6 +90,16 @@ public class ControladorFinJuego : MonoBehaviour
         nivelAlcohol = Mathf.Max(0f, nivelAlcohol + cantidad);
     }
 
+    public void RegistrarAccidenteGrave(string motivo)
+    {
+        if (juegoTerminado)
+        {
+            return;
+        }
+
+        TerminarPartida("ACCIDENTE GRAVE\n" + motivo, false);
+    }
+
     private void Update()
     {
         if (juegoTerminado)
@@ -104,7 +114,7 @@ public class ControladorFinJuego : MonoBehaviour
         // 1) Accidente grave por demasiado alcohol -> corta el juego.
         if (nivelAlcohol >= limiteAlcohol)
         {
-            TerminarPartida("ACCIDENTE GRAVE\nManejaste con demasiado alcohol.", false);
+            RegistrarAccidenteGrave("Manejaste con demasiado alcohol.");
             return;
         }
 
@@ -122,7 +132,7 @@ public class ControladorFinJuego : MonoBehaviour
         float umbralBorde = tiempoEnBordeParaChocar * (1f - factorAlcohol * 0.6f);
         if (tiempoEnBorde >= umbralBorde)
         {
-            TerminarPartida("ACCIDENTE GRAVE\nTe saliste del camino.", false);
+            RegistrarAccidenteGrave("Te saliste del camino.");
             return;
         }
 

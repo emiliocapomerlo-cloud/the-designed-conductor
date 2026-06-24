@@ -30,7 +30,7 @@ public class ControlarAuto : MonoBehaviour
 
         foreach (FollowPlayer amigo in todosLosAmigos)
         {
-            if (amigo.isFollowing)
+            if (amigo.CompareTag("Amigo") && amigo.isFollowing)
             {
                 amigosSiguiendo++;
             }

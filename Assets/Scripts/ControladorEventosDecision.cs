@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -26,6 +27,7 @@ public class ControladorEventosDecision : MonoBehaviour
         public EfectoManejo efecto;
         public bool aplicaEfecto;
         public float alcohol;
+        public string idVisualEvento;
     }
 
     private struct EventoDecision
@@ -36,9 +38,9 @@ public class ControladorEventosDecision : MonoBehaviour
     }
 
     [SerializeField] private ControladorPaisaje paisaje;
-    [SerializeField] private float demoraPrimerEvento = 5f;
-    [SerializeField] private float intervaloEventos = 24f;
-    [SerializeField] private float duracionDecision = 10f;
+    [SerializeField] private float demoraPrimerEvento = 2f;
+    [SerializeField] private float intervaloEventos = 13f;
+    [SerializeField] private float duracionDecision = 6f;
 
     private GameObject panelEvento;
     private Text textoEvento;
@@ -142,60 +144,83 @@ public class ControladorEventosDecision : MonoBehaviour
                 Efecto("Reflejos alterados", 15f, 1.45f, 2.2f, 105f, 28f, 1f, 1f, 0.9f, 0f, 1f),
                 45f,
                 "Rechazar",
-                SinEfecto()
+                SinEfecto(),
+                "Cerveza"
             ),
             NuevoEvento(
                 "Te llega un mensaje al celular y la pantalla se ilumina.",
                 "Leer",
                 Efecto("Mirada al celular", 7f, 1f, 0.7f, 0f, 0f, 0.78f, 1f, 0.18f, 0f, 0f),
+                0f,
                 "No mirar",
-                SinEfecto()
-            ),
-            NuevoEvento(
-                "El acompanante sube la musica justo cuando la ruta se angosta.",
-                "Dejarla",
-                Efecto("Musica fuerte", 12f, 1.05f, 2.8f, 12f, 8f, 1.04f, 0.92f, 1f, 0.18f, 5f),
-                "Bajar volumen",
-                SinEfecto()
-            ),
-            NuevoEvento(
-                "Tu amigo insiste con tomar un atajo de tierra.",
-                "Tomar atajo",
-                Efecto("Atajo de tierra", 14f, 1.18f, 3.4f, 30f, 10f, 1.28f, 0.62f, 0.85f, 0.32f, 8f),
-                "Seguir ruta",
-                Efecto("Ruta tranquila", 6f, 0.72f, 0.35f, 0f, 0f, 0.78f, 1f, 1.25f, 0f, 0f)
+                SinEfecto(),
+                "Celular"
             ),
             NuevoEvento(
                 "Ves un control policial mas adelante.",
                 "Bajar velocidad",
                 Efecto("Manejo prudente", 8f, 0.65f, 0.3f, 0f, 0f, 0.48f, 1.12f, 1.35f, 0f, 0f),
+                0f,
                 "Seguir igual",
-                Efecto("Nervios", 10f, 1.55f, 1.1f, 120f, 12f, 1.12f, 0.86f, 0.65f, 0.08f, 2f)
+                Efecto("Nervios", 10f, 1.55f, 1.1f, 120f, 12f, 1.12f, 0.86f, 0.65f, 0.08f, 2f),
+                "Policia"
+            ),
+            NuevoEvento(
+                "Tu amigo te ofrece otra cerveza, esta vez con una sonrisa.",
+                "Aceptar",
+                Efecto("Reflejos alterados", 15f, 1.42f, 2.1f, 98f, 26f, 1f, 1f, 0.92f, 0f, 1f),
+                45f,
+                "Rechazar",
+                SinEfecto(),
+                "Cerveza"
+            ),
+            NuevoEvento(
+                "El acompanante sube la musica justo cuando la ruta se angosta.",
+                "Dejarla",
+                Efecto("Musica fuerte", 12f, 1.05f, 2.8f, 12f, 8f, 1.04f, 0.92f, 1f, 0.18f, 5f),
+                0f,
+                "Bajar volumen",
+                SinEfecto(),
+                "Musica"
+            ),
+            NuevoEvento(
+                "Tu amigo insiste con tomar un atajo de tierra.",
+                "Tomar atajo",
+                Efecto("Atajo de tierra", 14f, 1.18f, 3.4f, 30f, 10f, 1.28f, 0.62f, 0.85f, 0.32f, 8f),
+                0f,
+                "Seguir ruta",
+                Efecto("Ruta tranquila", 6f, 0.72f, 0.35f, 0f, 0f, 0.78f, 1f, 1.25f, 0f, 0f),
+                "Atajo"
+            ),
+            NuevoEvento(
+                "Tu amigo te ofrece una tercera cerveza para seguir la noche.",
+                "Aceptar",
+                Efecto("Reflejos alterados", 16f, 1.48f, 2.35f, 112f, 30f, 1f, 1f, 0.88f, 0f, 1.2f),
+                50f,
+                "Rechazar",
+                SinEfecto(),
+                "Cerveza"
             )
         };
     }
 
-    private EventoDecision NuevoEvento(string texto, string textoA, EfectoManejo efectoA, string textoB, EfectoManejo efectoB)
-    {
-        return NuevoEvento(texto, textoA, efectoA, 0f, textoB, efectoB);
-    }
-
-    private EventoDecision NuevoEvento(string texto, string textoA, EfectoManejo efectoA, float alcoholA, string textoB, EfectoManejo efectoB)
+    private EventoDecision NuevoEvento(string texto, string textoA, EfectoManejo efectoA, float alcoholA, string textoB, EfectoManejo efectoB, string idVisualEvento)
     {
         EventoDecision evento = new EventoDecision();
         evento.texto = texto;
-        evento.opcionA = NuevaOpcion(textoA, efectoA, alcoholA);
-        evento.opcionB = NuevaOpcion(textoB, efectoB, 0f);
+        evento.opcionA = NuevaOpcion(textoA, efectoA, alcoholA, idVisualEvento);
+        evento.opcionB = NuevaOpcion(textoB, efectoB, 0f, "");
         return evento;
     }
 
-    private OpcionDecision NuevaOpcion(string texto, EfectoManejo efecto, float alcohol)
+    private OpcionDecision NuevaOpcion(string texto, EfectoManejo efecto, float alcohol, string idVisualEvento)
     {
         OpcionDecision opcion = new OpcionDecision();
         opcion.texto = texto;
         opcion.efecto = efecto;
         opcion.aplicaEfecto = efecto.duracion > 0f;
         opcion.alcohol = alcohol;
+        opcion.idVisualEvento = idVisualEvento;
         return opcion;
     }
 
@@ -278,6 +303,17 @@ public class ControladorEventosDecision : MonoBehaviour
             ControladorFinJuego.Instancia.SumarAlcohol(opcion.alcohol);
         }
 
+        ControladorVisualEventosAuto visualEventos = FindAnyObjectByType<ControladorVisualEventosAuto>();
+        if (opcion.alcohol > 0f && string.Equals(opcion.idVisualEvento, "Cerveza", StringComparison.OrdinalIgnoreCase) && visualEventos != null)
+        {
+            visualEventos.MostrarCervezaEnCabina();
+        }
+
+        if (!string.IsNullOrEmpty(opcion.idVisualEvento) && visualEventos != null)
+        {
+            visualEventos.ActivarEvento(opcion.idVisualEvento);
+        }
+
         if (opcion.aplicaEfecto && paisaje != null)
         {
             EfectoManejo efecto = opcion.efecto;
@@ -305,8 +341,15 @@ public class ControladorEventosDecision : MonoBehaviour
             GameObject canvasObjeto = new GameObject("Canvas", typeof(RectTransform));
             canvas = canvasObjeto.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = 250;
             canvasObjeto.AddComponent<CanvasScaler>();
             canvasObjeto.AddComponent<GraphicRaycaster>();
+        }
+        else
+        {
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = Mathf.Max(canvas.sortingOrder, 250);
         }
 
         Font fuente = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");

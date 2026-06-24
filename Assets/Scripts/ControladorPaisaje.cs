@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class ControladorPaisaje : MonoBehaviour
@@ -10,7 +11,7 @@ public class ControladorPaisaje : MonoBehaviour
     public RectTransform cabina;
     public PerspectivaCaminoVisual caminoPerspectiva;
 
-    public float velocidadAuto = 250f;
+    public float velocidadAuto = 190f;
     public float fuerzaGiro = 1.8f;
     public float altoCalle = 800f;
     public float limiteHorizontalCamino = 260f;
@@ -61,6 +62,7 @@ public class ControladorPaisaje : MonoBehaviour
 
     private void Start()
     {
+        velocidadAuto = 190f;
         CabinaEnviroBootstrap.AplicarVisualCabina();
 
         if (cabina != null)
@@ -128,6 +130,12 @@ public class ControladorPaisaje : MonoBehaviour
         sacudidaCabina = Mathf.Max(0f, nuevaSacudidaCabina);
         rotacionVolanteFiltrada = Mathf.DeltaAngle(0f, volante != null ? volante.transform.eulerAngles.z : 0f);
         nombreEfectoDecision = string.IsNullOrEmpty(nombreEfecto) ? "Control alterado" : nombreEfecto;
+
+        if (caminoPerspectiva != null)
+        {
+            bool usarTierra = string.Equals(nombreEfectoDecision, "Atajo de tierra", StringComparison.OrdinalIgnoreCase);
+            caminoPerspectiva.SetModoSuperficie(usarTierra);
+        }
     }
 
     private float CalcularRotacionAfectada(float rotacionVolante)
@@ -187,6 +195,11 @@ public class ControladorPaisaje : MonoBehaviour
             pulsoVelocidad = 0f;
             sacudidaCabina = 0f;
             nombreEfectoDecision = "";
+
+            if (caminoPerspectiva != null)
+            {
+                caminoPerspectiva.SetModoSuperficie(false);
+            }
 
             if (cabina != null)
             {
