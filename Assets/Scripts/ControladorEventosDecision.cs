@@ -39,8 +39,11 @@ public class ControladorEventosDecision : MonoBehaviour
 
     [SerializeField] private ControladorPaisaje paisaje;
     [SerializeField] private float demoraPrimerEvento = 2f;
-    [SerializeField] private float intervaloEventos = 13f;
+    [SerializeField] private float intervaloEventos = 10f;
     [SerializeField] private float duracionDecision = 6f;
+    [SerializeField] private AudioClip musicaCompanero;
+    [SerializeField] private string rutaMusicaCompanero = "Audio/MusicaCompanero";
+    [SerializeField, Range(0f, 1f)] private float volumenMusicaCompanero = 0.55f;
 
     private GameObject panelEvento;
     private Text textoEvento;
@@ -51,6 +54,9 @@ public class ControladorEventosDecision : MonoBehaviour
     private EventoDecision eventoActual;
     private bool esperandoDecision;
     private int indiceEvento;
+    private AudioSource audioMusicaCompanero;
+    private Coroutine rutinaDetenerMusicaCompanero;
+    private bool avisoClipMusicaMostrado;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void IniciarAutomaticamente()
@@ -83,6 +89,7 @@ public class ControladorEventosDecision : MonoBehaviour
             paisaje = FindAnyObjectByType<ControladorPaisaje>();
         }
 
+        ConfigurarAudioMusicaCompanero();
         CrearInterfaz();
         OcultarEvento();
     }
@@ -176,7 +183,16 @@ public class ControladorEventosDecision : MonoBehaviour
             ),
             NuevoEvento(
                 "El acompanante sube la musica justo cuando la ruta se angosta.",
-                "Dejarla",
+                "Aceptar",
+                Efecto("Musica fuerte", 12f, 1.05f, 2.8f, 12f, 8f, 1.04f, 0.92f, 1f, 0.18f, 5f),
+                0f,
+                "Bajar volumen",
+                SinEfecto(),
+                "Musica"
+            ),
+            NuevoEvento(
+                "Tu acompanante vuelve a subir la musica y te distrae del camino.",
+                "Aceptar",
                 Efecto("Musica fuerte", 12f, 1.05f, 2.8f, 12f, 8f, 1.04f, 0.92f, 1f, 0.18f, 5f),
                 0f,
                 "Bajar volumen",
@@ -298,6 +314,18 @@ public class ControladorEventosDecision : MonoBehaviour
         esperandoDecision = false;
         OcultarEvento();
 
+        bool eventoDeMusica = EventoActualEsMusica();
+        bool opcionMantieneMusica = string.Equals(opcion.idVisualEvento, "Musica", StringComparison.OrdinalIgnoreCase);
+
+        if (opcionMantieneMusica)
+        {
+            ReproducirMusicaCompanero(opcion.efecto.duracion, false);
+        }
+        else if (eventoDeMusica)
+        {
+            DetenerMusicaCompanero();
+        }
+
         if (opcion.alcohol > 0f && ControladorFinJuego.Instancia != null)
         {
             ControladorFinJuego.Instancia.SumarAlcohol(opcion.alcohol);
@@ -331,6 +359,107 @@ public class ControladorEventosDecision : MonoBehaviour
                 efecto.sacudidaCabina
             );
         }
+    }
+
+    private void ConfigurarAudioMusicaCompanero()
+    {
+        if (musicaCompanero == null && !string.IsNullOrEmpty(rutaMusicaCompanero))
+        {
+            musicaCompanero = Resources.Load<AudioClip>(rutaMusicaCompanero);
+        }
+
+        audioMusicaCompanero = GetComponent<AudioSource>();
+        if (audioMusicaCompanero == null)
+        {
+            audioMusicaCompanero = gameObject.AddComponent<AudioSource>();
+        }
+
+        audioMusicaCompanero.playOnAwake = false;
+        audioMusicaCompanero.loop = true;
+        audioMusicaCompanero.spatialBlend = 0f;
+        audioMusicaCompanero.volume = volumenMusicaCompanero;
+        audioMusicaCompanero.clip = musicaCompanero;
+    }
+
+    private void ReproducirMusicaCompanero(float duracion, bool reiniciar)
+    {
+        if (audioMusicaCompanero == null)
+        {
+            ConfigurarAudioMusicaCompanero();
+        }
+
+        if (musicaCompanero == null && !string.IsNullOrEmpty(rutaMusicaCompanero))
+        {
+            musicaCompanero = Resources.Load<AudioClip>(rutaMusicaCompanero);
+        }
+
+        if (musicaCompanero == null)
+        {
+            if (!avisoClipMusicaMostrado)
+            {
+                Debug.LogWarning("No se encontro el audio del evento de musica. Ponelo en Assets/Resources/Audio/MusicaCompanero con extension .mp3, .wav u .ogg.");
+                avisoClipMusicaMostrado = true;
+            }
+
+            return;
+        }
+
+        audioMusicaCompanero.clip = musicaCompanero;
+        audioMusicaCompanero.volume = volumenMusicaCompanero;
+        audioMusicaCompanero.loop = true;
+
+        if (reiniciar || !audioMusicaCompanero.isPlaying)
+        {
+            audioMusicaCompanero.Stop();
+            audioMusicaCompanero.Play();
+        }
+
+        ProgramarDetencionMusicaCompanero(duracion);
+    }
+
+    private void ProgramarDetencionMusicaCompanero(float duracion)
+    {
+        if (rutinaDetenerMusicaCompanero != null)
+        {
+            StopCoroutine(rutinaDetenerMusicaCompanero);
+        }
+
+        rutinaDetenerMusicaCompanero = StartCoroutine(DetenerMusicaCompaneroDespuesDe(duracion));
+    }
+
+    private IEnumerator DetenerMusicaCompaneroDespuesDe(float duracion)
+    {
+        yield return new WaitForSeconds(Mathf.Max(0.1f, duracion));
+        rutinaDetenerMusicaCompanero = null;
+
+        if (audioMusicaCompanero != null && audioMusicaCompanero.isPlaying)
+        {
+            audioMusicaCompanero.Stop();
+        }
+    }
+
+    private void DetenerMusicaCompanero()
+    {
+        if (rutinaDetenerMusicaCompanero != null)
+        {
+            StopCoroutine(rutinaDetenerMusicaCompanero);
+            rutinaDetenerMusicaCompanero = null;
+        }
+
+        if (audioMusicaCompanero != null && audioMusicaCompanero.isPlaying)
+        {
+            audioMusicaCompanero.Stop();
+        }
+    }
+
+    private bool EventoActualEsMusica()
+    {
+        return EventoEsMusica(eventoActual);
+    }
+
+    private bool EventoEsMusica(EventoDecision evento)
+    {
+        return string.Equals(evento.opcionA.idVisualEvento, "Musica", StringComparison.OrdinalIgnoreCase);
     }
 
     private void CrearInterfaz()
