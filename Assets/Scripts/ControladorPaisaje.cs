@@ -42,6 +42,18 @@ public class ControladorPaisaje : MonoBehaviour
     public float VelocidadActual => velocidadActual;
     public float VelocidadMaximaVisual => Mathf.Max(1f, velocidadAuto * 1.5f);
 
+    // Posicion lateral del auto dentro del camino: -1 = borde izquierdo,
+    // 0 = centro y 1 = borde derecho. Los obstaculos la usan para calcular
+    // impactos sin depender de colliders fisicos en la interfaz.
+    public float PosicionLateralNormalizada
+    {
+        get
+        {
+            float limiteActual = limiteHorizontalCamino * multiplicadorLimiteCamino;
+            return limiteActual <= 0f ? 0f : Mathf.Clamp(desplazamientoHorizontal / limiteActual, -1f, 1f);
+        }
+    }
+
     // Distancia total recorrida hacia adelante (sirve para saber si llegamos a casa).
     public float AvanceAcumulado => avanceAcumulado;
 

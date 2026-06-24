@@ -39,7 +39,7 @@ public class ControladorEventosDecision : MonoBehaviour
 
     [SerializeField] private ControladorPaisaje paisaje;
     [SerializeField] private float demoraPrimerEvento = 2f;
-    [SerializeField] private float intervaloEventos = 13f;
+    [SerializeField] private float intervaloEventos = 12f;
     [SerializeField] private float duracionDecision = 6f;
 
     private GameObject panelEvento;
@@ -50,7 +50,6 @@ public class ControladorEventosDecision : MonoBehaviour
     private Button botonB;
     private EventoDecision eventoActual;
     private bool esperandoDecision;
-    private int indiceEvento;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void IniciarAutomaticamente()
@@ -115,23 +114,24 @@ public class ControladorEventosDecision : MonoBehaviour
     {
         yield return new WaitForSeconds(demoraPrimerEvento);
 
-        while (true)
+        // Los siete eventos se reparten entre los segundos 2 y 74. No se repiten:
+        // asi todos entran en la partida de un minuto y medio, incluso si hay un
+        // efecto de manejo activo de una decision anterior.
+        EventoDecision[] eventos = CrearEventos();
+        for (int i = 0; i < eventos.Length; i++)
         {
-            if (paisaje != null && !paisaje.HayEfectoDecision)
+            float inicioEvento = Time.time;
+            if (paisaje != null)
             {
-                yield return MostrarEvento(SiguienteEvento());
+                yield return MostrarEvento(eventos[i]);
             }
 
-            yield return new WaitForSeconds(intervaloEventos);
+            if (i < eventos.Length - 1)
+            {
+                float esperaRestante = Mathf.Max(0f, intervaloEventos - (Time.time - inicioEvento));
+                yield return new WaitForSeconds(esperaRestante);
+            }
         }
-    }
-
-    private EventoDecision SiguienteEvento()
-    {
-        EventoDecision[] eventos = CrearEventos();
-        EventoDecision evento = eventos[indiceEvento % eventos.Length];
-        indiceEvento++;
-        return evento;
     }
 
     private EventoDecision[] CrearEventos()
@@ -248,7 +248,7 @@ public class ControladorEventosDecision : MonoBehaviour
 
     private IEnumerator MostrarEvento(EventoDecision evento)
     {
-        if (panelEvento == null || paisaje == null || paisaje.HayEfectoDecision)
+        if (panelEvento == null || paisaje == null)
         {
             yield break;
         }

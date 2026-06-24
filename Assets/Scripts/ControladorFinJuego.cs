@@ -4,15 +4,16 @@ using UnityEngine.UI;
 
 // Vigila las condiciones que cortan o terminan la partida durante la fase de manejo:
 //  - Accidente grave (por mucho alcohol o por irse del camino) -> GAME OVER, corta el juego.
-//  - Pasar el tiempo limite (2 minutos) o llegar a casa -> FINAL de la partida.
+//  - Pasar el tiempo limite (1 minuto y medio) o llegar a casa -> FINAL de la partida.
 // Se crea solo cuando existe un ControladorPaisaje en la escena (es decir, en la escena de manejo).
 public class ControladorFinJuego : MonoBehaviour
 {
     public static ControladorFinJuego Instancia { get; private set; }
+    public bool PartidaTerminada => juegoTerminado;
 
     [Header("Condiciones de FINAL del juego")]
-    [Tooltip("Tiempo maximo de la partida en segundos (2 minutos = 120).")]
-    [SerializeField] private float duracionPartidaSegundos = 120f;
+    [Tooltip("Tiempo maximo de la partida en segundos (1 minuto y medio = 90).")]
+    [SerializeField] private float duracionPartidaSegundos = 90f;
     [Tooltip("Distancia que hay que recorrer hacia adelante para llegar a casa.")]
     [SerializeField] private float distanciaParaLlegarACasa = 60000f;
 
@@ -143,7 +144,7 @@ public class ControladorFinJuego : MonoBehaviour
             return;
         }
 
-        // 4) Se acabaron los 2 minutos -> final del recorrido.
+        // 4) Se acabo el minuto y medio -> final del recorrido.
         if (tiempoTranscurrido >= duracionPartidaSegundos)
         {
             TerminarPartida("FIN DEL RECORRIDO\nSe acabo el tiempo.", true);
