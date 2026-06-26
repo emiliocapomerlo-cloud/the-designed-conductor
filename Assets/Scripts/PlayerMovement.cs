@@ -25,7 +25,7 @@ public partial class PlayerMovement : MonoBehaviour
         {
             rb.gravityScale = 0f;
             rb.constraints |= RigidbodyConstraints2D.FreezeRotation;
-            rb.velocity = Vector2.zero;
+            rb.linearVelocity = Vector2.zero;
             rb.angularVelocity = 0f;
         }
     }
@@ -51,7 +51,7 @@ public partial class PlayerMovement : MonoBehaviour
             return;
         }
 
-        rb.velocity = Vector2.zero;
+        rb.linearVelocity = Vector2.zero;
         rb.angularVelocity = 0f;
         MoverConColisiones(inputDirection * speed * Time.fixedDeltaTime);
     }
