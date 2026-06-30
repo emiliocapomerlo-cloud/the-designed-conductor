@@ -2,27 +2,33 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-// Programa los autos de frente de la escena de manejo y comprueba su impacto.
-// Se usa geometria UI porque el manejo se representa dentro de un Canvas.
+// Obstaculos de manejo hechos con UI estandar. Cada auto enemigo es un
+// RectTransform con Image; la profundidad se simula moviendo Y y escalando.
 public class ControladorObstaculosManejo : MonoBehaviour
 {
     private const float DuracionAuto = 6f;
-    private const float InicioZonaImpacto = 0.45f;
-    private const float FinZonaImpacto = 0.96f;
-    // Pixeles extra a cada lado de la zona central del jugador. Hace que el
-    // impacto sea indulgente visualmente, sin cubrir por completo la ruta.
-    private const float MargenImpactoAutoPixeles = 28f;
 
-    // Los tres autos entran y terminan su recorrido antes del final a los 90 s.
-    private static readonly float[] TiemposAparicion = { 18f, 46f, 74f };
-    // Los autos alternan sus carriles: derecha, izquierda y derecha.
-    // Ninguno aparece en el centro, por lo que siempre hay un lateral libre.
-    private static readonly float[] CarrilesAutos = { 0.68f, -0.68f, 0.68f };
+    private static readonly float[] TiemposAparicion = { 12f, 26f, 40f, 56f, 72f };
+    private static readonly int[] CarrilesDisponibles = { -1, 0, 1 };
 
-    private ControladorPaisaje paisaje;
-    private ObstaculoManejoVisual[] visuales;
+    [SerializeField] private ControladorPaisaje paisaje;
+    [SerializeField] private RectTransform zonaImpactoJugador;
+    [SerializeField] private Vector2 tamanoBaseAuto = new Vector2(108f, 150f);
+    [SerializeField] private Vector2 tamanoZonaImpacto = new Vector2(170f, 96f);
+    [SerializeField] private float escalaInicial = 0.22f;
+    [SerializeField] private float escalaFinal = 2.75f;
+    [SerializeField] private float posicionYInicioNormalizada = 0.26f;
+    [SerializeField] private float posicionYImpactoNormalizada = -0.18f;
+    [SerializeField] private float separacionCarrilesLejos = 0.08f;
+    [SerializeField] private float separacionCarrilesCerca = 0.32f;
+    [SerializeField] private float factorCompensacionJugador = 1f;
+
+    private RectTransform capaAutos;
+    private AutoEnemigoUI[] autos;
     private float tiempoTranscurrido;
     private bool accidenteRegistrado;
+    private readonly Vector3[] esquinasAuto = new Vector3[4];
+    private readonly Vector3[] esquinasZona = new Vector3[4];
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void IniciarAutomaticamente()
@@ -45,8 +51,12 @@ public class ControladorObstaculosManejo : MonoBehaviour
 
     private void Awake()
     {
-        paisaje = FindAnyObjectByType<ControladorPaisaje>();
-        CrearVisuales();
+        if (paisaje == null)
+        {
+            paisaje = FindAnyObjectByType<ControladorPaisaje>();
+        }
+
+        CrearInterfaz();
     }
 
     private void Update()
@@ -60,10 +70,10 @@ public class ControladorObstaculosManejo : MonoBehaviour
             }
         }
 
-        if (visuales == null)
+        if (capaAutos == null || autos == null)
         {
-            CrearVisuales();
-            if (visuales == null)
+            CrearInterfaz();
+            if (capaAutos == null || autos == null)
             {
                 return;
             }
@@ -76,7 +86,7 @@ public class ControladorObstaculosManejo : MonoBehaviour
         }
 
         tiempoTranscurrido += Time.deltaTime;
-        for (int i = 0; i < TiemposAparicion.Length; i++)
+        for (int i = 0; i < autos.Length; i++)
         {
             ActualizarAuto(i);
         }
@@ -84,33 +94,98 @@ public class ControladorObstaculosManejo : MonoBehaviour
 
     private void ActualizarAuto(int indice)
     {
-        if (tiempoTranscurrido < TiemposAparicion[indice])
+        AutoEnemigoUI auto = autos[indice];
+        float tiempoDesdeAparicion = tiempoTranscurrido - TiemposAparicion[indice];
+
+        if (tiempoDesdeAparicion < 0f)
         {
             return;
         }
 
-        float progreso = (tiempoTranscurrido - TiemposAparicion[indice]) / DuracionAuto;
+        if (!auto.CarrilAsignado)
+        {
+            auto.Carril = CarrilesDisponibles[Random.Range(0, CarrilesDisponibles.Length)];
+            auto.CarrilAsignado = true;
+        }
+
+        float progreso = tiempoDesdeAparicion / DuracionAuto;
         if (progreso >= 1f)
         {
-            visuales[indice].Ocultar();
+            auto.Ocultar();
             return;
         }
 
-        // El auto enemigo conserva su carril. El volante mueve solamente la
-        // zona de impacto del jugador, para que el auto no lo siga en espejo.
-        visuales[indice].Mostrar(progreso, CarrilesAutos[indice]);
+        ActualizarTransformAuto(auto, progreso);
 
-        // La colision usa la misma geometria que el dibujo, no solo el carril.
-        // La zona del jugador es deliberadamente ancha para que un auto que se
-        // ve centrado choque, pero permite salvarse moviendolo a un lateral.
-        if (progreso >= InicioZonaImpacto && progreso <= FinZonaImpacto &&
-            visuales[indice].SeSuperponeConZonaJugador(
-                MargenImpactoAutoPixeles,
-                paisaje.PosicionLateralNormalizada
-            ))
+        if (!accidenteRegistrado && RectsSeSuperponen(auto.RectTransform, zonaImpactoJugador))
         {
             RegistrarAccidente("Chocaste contra un auto de frente.");
         }
+    }
+
+    private void ActualizarTransformAuto(AutoEnemigoUI auto, float progreso)
+    {
+        Rect rectCapa = ObtenerRectCapa();
+        float profundidad = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(progreso));
+        float yInicio = rectCapa.height * posicionYInicioNormalizada;
+        float yImpacto = ObtenerYImpacto(rectCapa);
+        float y = Mathf.Lerp(yInicio, yImpacto, profundidad);
+        float separacionCarril = rectCapa.width * Mathf.Lerp(separacionCarrilesLejos, separacionCarrilesCerca, profundidad);
+
+        // El carril del auto existe en el camino. La posicion del jugador se
+        // resta para compensar el desplazamiento del paisaje y permitir esquive.
+        float jugador = paisaje != null ? paisaje.PosicionLateralNormalizada : 0f;
+        float x = (auto.Carril - jugador * factorCompensacionJugador) * separacionCarril;
+        float escala = Mathf.Lerp(escalaInicial, escalaFinal, profundidad);
+
+        auto.RectTransform.anchoredPosition = new Vector2(x, y);
+        auto.RectTransform.localScale = new Vector3(escala, escala, 1f);
+        auto.Mostrar();
+    }
+
+    private Rect ObtenerRectCapa()
+    {
+        Rect rect = capaAutos.rect;
+        if (rect.width < 1f || rect.height < 1f)
+        {
+            return new Rect(0f, 0f, Screen.width, Screen.height);
+        }
+
+        return rect;
+    }
+
+    private float ObtenerYImpacto(Rect rectCapa)
+    {
+        if (zonaImpactoJugador == null)
+        {
+            return rectCapa.height * posicionYImpactoNormalizada;
+        }
+
+        Vector3 centroMundo = zonaImpactoJugador.TransformPoint(zonaImpactoJugador.rect.center);
+        Vector3 centroLocal = capaAutos.InverseTransformPoint(centroMundo);
+        return centroLocal.y;
+    }
+
+    private bool RectsSeSuperponen(RectTransform a, RectTransform b)
+    {
+        if (a == null || b == null || !a.gameObject.activeInHierarchy || !b.gameObject.activeInHierarchy)
+        {
+            return false;
+        }
+
+        Rect rectA = ObtenerRectMundo(a, esquinasAuto);
+        Rect rectB = ObtenerRectMundo(b, esquinasZona);
+        return rectA.Overlaps(rectB);
+    }
+
+    private static Rect ObtenerRectMundo(RectTransform rectTransform, Vector3[] esquinas)
+    {
+        rectTransform.GetWorldCorners(esquinas);
+        float xMin = esquinas[0].x;
+        float yMin = esquinas[0].y;
+        float xMax = esquinas[2].x;
+        float yMax = esquinas[2].y;
+        return Rect.MinMaxRect(xMin, yMin, xMax, yMax);
     }
 
     private void RegistrarAccidente(string motivo)
@@ -133,166 +208,165 @@ public class ControladorObstaculosManejo : MonoBehaviour
         }
     }
 
-    private void CrearVisuales()
+    private void CrearInterfaz()
     {
         if (paisaje == null || paisaje.cabina == null || paisaje.cabina.parent == null)
         {
             return;
         }
 
-        Transform padre = paisaje.cabina.parent;
-        visuales = new ObstaculoManejoVisual[TiemposAparicion.Length];
-        for (int i = 0; i < visuales.Length; i++)
-        {
-            GameObject objeto = new GameObject("AutoDeFrente_" + (i + 1), typeof(RectTransform), typeof(CanvasRenderer));
-            objeto.transform.SetParent(padre, false);
-
-            RectTransform rect = objeto.GetComponent<RectTransform>();
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-
-            visuales[i] = objeto.AddComponent<ObstaculoManejoVisual>();
-            objeto.transform.SetSiblingIndex(paisaje.cabina.GetSiblingIndex());
-            visuales[i].Ocultar();
-        }
-    }
-
-    private void OcultarTodos()
-    {
-        if (visuales == null)
+        RectTransform padre = paisaje.cabina.parent as RectTransform;
+        if (padre == null)
         {
             return;
         }
 
-        foreach (ObstaculoManejoVisual visual in visuales)
+        capaAutos = CrearCapaAutos(padre);
+        if (zonaImpactoJugador == null)
         {
-            if (visual != null)
+            zonaImpactoJugador = BuscarZonaImpactoExistente(padre);
+        }
+
+        if (zonaImpactoJugador == null)
+        {
+            zonaImpactoJugador = CrearZonaImpacto(capaAutos);
+        }
+
+        autos = new AutoEnemigoUI[TiemposAparicion.Length];
+        for (int i = 0; i < autos.Length; i++)
+        {
+            autos[i] = CrearAuto("AutoDeFrente_" + (i + 1), capaAutos);
+            autos[i].Ocultar();
+        }
+    }
+
+    private RectTransform CrearCapaAutos(RectTransform padre)
+    {
+        GameObject objeto = new GameObject("CapaAutosEnemigosUI", typeof(RectTransform));
+        objeto.transform.SetParent(padre, false);
+
+        RectTransform rect = objeto.GetComponent<RectTransform>();
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+        rect.pivot = new Vector2(0.5f, 0.5f);
+
+        objeto.transform.SetSiblingIndex(paisaje.cabina.GetSiblingIndex());
+        return rect;
+    }
+
+    private RectTransform BuscarZonaImpactoExistente(RectTransform padre)
+    {
+        Transform existente = padre.Find("ZonaImpactoJugador");
+        if (existente == null)
+        {
+            return null;
+        }
+
+        return existente as RectTransform;
+    }
+
+    private RectTransform CrearZonaImpacto(RectTransform padre)
+    {
+        GameObject objeto = new GameObject("ZonaImpactoJugador", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        objeto.transform.SetParent(padre, false);
+
+        RectTransform rect = objeto.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.sizeDelta = tamanoZonaImpacto;
+
+        Rect rectCapa = ObtenerRectCapa();
+        rect.anchoredPosition = new Vector2(0f, rectCapa.height * posicionYImpactoNormalizada);
+
+        Image imagen = objeto.GetComponent<Image>();
+        imagen.color = new Color(1f, 0f, 0f, 0f);
+        imagen.raycastTarget = false;
+        return rect;
+    }
+
+    private AutoEnemigoUI CrearAuto(string nombre, RectTransform padre)
+    {
+        GameObject objeto = new GameObject(nombre, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        objeto.transform.SetParent(padre, false);
+
+        RectTransform rect = objeto.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.sizeDelta = tamanoBaseAuto;
+
+        Image carroceria = objeto.GetComponent<Image>();
+        carroceria.color = new Color(0.72f, 0.10f, 0.08f, 1f);
+        carroceria.raycastTarget = false;
+
+        CrearParteAuto("Parabrisas", rect, new Vector2(0.25f, 0.58f), new Vector2(0.75f, 0.86f), new Color(0.48f, 0.78f, 0.88f, 1f));
+        CrearParteAuto("Parrilla", rect, new Vector2(0.16f, 0.28f), new Vector2(0.84f, 0.44f), new Color(0.28f, 0.03f, 0.03f, 1f));
+        CrearParteAuto("LuzIzquierda", rect, new Vector2(0.10f, 0.12f), new Vector2(0.34f, 0.26f), new Color(1f, 0.92f, 0.55f, 1f));
+        CrearParteAuto("LuzDerecha", rect, new Vector2(0.66f, 0.12f), new Vector2(0.90f, 0.26f), new Color(1f, 0.92f, 0.55f, 1f));
+
+        return new AutoEnemigoUI(rect);
+    }
+
+    private void CrearParteAuto(string nombre, RectTransform padre, Vector2 anchorMin, Vector2 anchorMax, Color color)
+    {
+        GameObject objeto = new GameObject(nombre, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        objeto.transform.SetParent(padre, false);
+
+        RectTransform rect = objeto.GetComponent<RectTransform>();
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+
+        Image imagen = objeto.GetComponent<Image>();
+        imagen.color = color;
+        imagen.raycastTarget = false;
+    }
+
+    private void OcultarTodos()
+    {
+        if (autos == null)
+        {
+            return;
+        }
+
+        foreach (AutoEnemigoUI auto in autos)
+        {
+            if (auto != null)
             {
-                visual.Ocultar();
+                auto.Ocultar();
             }
         }
     }
-}
 
-// Dibuja un auto de frente que se agranda al acercarse por el parabrisas.
-public class ObstaculoManejoVisual : MaskableGraphic
-{
-    private float progreso;
-    private float lateralRelativo;
-
-    protected override void OnEnable()
+    private class AutoEnemigoUI
     {
-        base.OnEnable();
-        raycastTarget = false;
-    }
+        public readonly RectTransform RectTransform;
+        public int Carril;
+        public bool CarrilAsignado;
 
-    public void Mostrar(float nuevoProgreso, float nuevoLateralRelativo)
-    {
-        progreso = Mathf.Clamp01(nuevoProgreso);
-        lateralRelativo = nuevoLateralRelativo;
-        if (!gameObject.activeSelf)
+        public AutoEnemigoUI(RectTransform rectTransform)
         {
-            gameObject.SetActive(true);
+            RectTransform = rectTransform;
         }
 
-        SetVerticesDirty();
-    }
-
-    public void Ocultar()
-    {
-        if (gameObject.activeSelf)
+        public void Mostrar()
         {
-            gameObject.SetActive(false);
+            if (!RectTransform.gameObject.activeSelf)
+            {
+                RectTransform.gameObject.SetActive(true);
+            }
         }
-    }
 
-    public bool SeSuperponeConZonaJugador(float margenExtra, float posicionLateralJugador)
-    {
-        Rect rectanguloAuto = ObtenerRectanguloAuto();
-        Rect zonaJugador = ObtenerZonaJugador(posicionLateralJugador);
-        zonaJugador.xMin -= margenExtra;
-        zonaJugador.xMax += margenExtra;
-        return rectanguloAuto.Overlaps(zonaJugador);
-    }
-
-    protected override void OnPopulateMesh(VertexHelper vh)
-    {
-        vh.Clear();
-
-        Rect rect = GetPixelAdjustedRect();
-        CalcularGeometriaAuto(rect, out float x, out float y, out float ancho);
-        DibujarAuto(vh, x, y, ancho);
-    }
-
-    private Rect ObtenerRectanguloAuto()
-    {
-        Rect rect = GetPixelAdjustedRect();
-        CalcularGeometriaAuto(rect, out float x, out float y, out float ancho);
-        float alto = ancho * 0.62f;
-
-        // Incluye carroceria, parabrisas y luces: es el contorno que se ve.
-        return Rect.MinMaxRect(
-            x - ancho * 0.5f,
-            y - alto * 0.36f,
-            x + ancho * 0.5f,
-            y + alto * 0.52f
-        );
-    }
-
-    private Rect ObtenerZonaJugador(float posicionLateralJugador)
-    {
-        Rect rect = GetPixelAdjustedRect();
-        float ancho = rect.width * 0.10f;
-        float yMin = Mathf.Lerp(rect.yMin, rect.yMax, 0.50f);
-        float yMax = Mathf.Lerp(rect.yMin, rect.yMax, 0.67f);
-        float yNormalizada = Mathf.Lerp(0.74f, 0.49f, progreso);
-        float profundidadCamino = Mathf.InverseLerp(0f, 0.74f, yNormalizada);
-        float mitadCamino = Mathf.Lerp(rect.width * 0.41f, rect.width * 0.06f, profundidadCamino);
-        float xJugador = rect.center.x + Mathf.Clamp(posicionLateralJugador, -1f, 1f) * mitadCamino;
-        return Rect.MinMaxRect(xJugador - ancho * 0.5f, yMin, xJugador + ancho * 0.5f, yMax);
-    }
-
-    private void CalcularGeometriaAuto(Rect rect, out float x, out float y, out float ancho)
-    {
-        float yNormalizada = Mathf.Lerp(0.74f, 0.49f, progreso);
-        y = Mathf.Lerp(rect.yMin, rect.yMax, yNormalizada);
-        float profundidadCamino = Mathf.InverseLerp(0f, 0.74f, yNormalizada);
-        float mitadCamino = Mathf.Lerp(rect.width * 0.41f, rect.width * 0.06f, profundidadCamino);
-        x = rect.center.x + lateralRelativo * mitadCamino;
-        float escala = Mathf.Lerp(0.12f, 1f, Mathf.SmoothStep(0f, 1f, progreso));
-
-        // Cada mitad del camino es un carril. Al limitar el auto a una fraccion
-        // de ese ancho, queda claramente de un solo lado de la linea central.
-        float anchoPorEscala = rect.width * 0.25f * escala;
-        float anchoMaximoPorCarril = mitadCamino * 0.82f;
-        ancho = Mathf.Min(anchoPorEscala, anchoMaximoPorCarril);
-    }
-
-    private void DibujarAuto(VertexHelper vh, float x, float y, float ancho)
-    {
-        float alto = ancho * 0.62f;
-        Color carroceria = new Color(0.72f, 0.12f, 0.1f, 1f);
-        Color carroceriaOscura = new Color(0.36f, 0.045f, 0.035f, 1f);
-        Color vidrio = new Color(0.48f, 0.78f, 0.88f, 1f);
-
-        AddQuad(vh, new Vector2(x - ancho * 0.5f, y - alto * 0.36f), new Vector2(x + ancho * 0.5f, y - alto * 0.36f), new Vector2(x + ancho * 0.4f, y + alto * 0.3f), new Vector2(x - ancho * 0.4f, y + alto * 0.3f), carroceria);
-        AddQuad(vh, new Vector2(x - ancho * 0.3f, y + alto * 0.28f), new Vector2(x + ancho * 0.3f, y + alto * 0.28f), new Vector2(x + ancho * 0.2f, y + alto * 0.52f), new Vector2(x - ancho * 0.2f, y + alto * 0.52f), carroceriaOscura);
-        AddQuad(vh, new Vector2(x - ancho * 0.18f, y + alto * 0.3f), new Vector2(x + ancho * 0.18f, y + alto * 0.3f), new Vector2(x + ancho * 0.12f, y + alto * 0.46f), new Vector2(x - ancho * 0.12f, y + alto * 0.46f), vidrio);
-        AddQuad(vh, new Vector2(x - ancho * 0.4f, y - alto * 0.12f), new Vector2(x + ancho * 0.4f, y - alto * 0.12f), new Vector2(x + ancho * 0.34f, y + alto * 0.02f), new Vector2(x - ancho * 0.34f, y + alto * 0.02f), carroceriaOscura);
-        AddQuad(vh, new Vector2(x - ancho * 0.36f, y - alto * 0.24f), new Vector2(x - ancho * 0.18f, y - alto * 0.24f), new Vector2(x - ancho * 0.18f, y - alto * 0.08f), new Vector2(x - ancho * 0.36f, y - alto * 0.08f), new Color(1f, 0.92f, 0.55f, 1f));
-        AddQuad(vh, new Vector2(x + ancho * 0.18f, y - alto * 0.24f), new Vector2(x + ancho * 0.36f, y - alto * 0.24f), new Vector2(x + ancho * 0.36f, y - alto * 0.08f), new Vector2(x + ancho * 0.18f, y - alto * 0.08f), new Color(1f, 0.92f, 0.55f, 1f));
-    }
-
-    private void AddQuad(VertexHelper vh, Vector2 a, Vector2 b, Vector2 c, Vector2 d, Color colorQuad)
-    {
-        int inicio = vh.currentVertCount;
-        vh.AddVert(a, colorQuad, Vector2.zero);
-        vh.AddVert(b, colorQuad, Vector2.zero);
-        vh.AddVert(c, colorQuad, Vector2.zero);
-        vh.AddVert(d, colorQuad, Vector2.zero);
-        vh.AddTriangle(inicio, inicio + 1, inicio + 2);
-        vh.AddTriangle(inicio, inicio + 2, inicio + 3);
+        public void Ocultar()
+        {
+            if (RectTransform.gameObject.activeSelf)
+            {
+                RectTransform.gameObject.SetActive(false);
+            }
+        }
     }
 }

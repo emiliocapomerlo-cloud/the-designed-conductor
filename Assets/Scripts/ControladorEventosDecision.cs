@@ -333,11 +333,6 @@ public class ControladorEventosDecision : MonoBehaviour
         }
 
         ControladorVisualEventosAuto visualEventos = FindAnyObjectByType<ControladorVisualEventosAuto>();
-        if (opcion.alcohol > 0f && string.Equals(opcion.idVisualEvento, "Cerveza", StringComparison.OrdinalIgnoreCase) && visualEventos != null)
-        {
-            visualEventos.MostrarCervezaEnCabina();
-        }
-
         if (!string.IsNullOrEmpty(opcion.idVisualEvento) && visualEventos != null)
         {
             visualEventos.ActivarEvento(opcion.idVisualEvento);

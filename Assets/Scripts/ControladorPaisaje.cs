@@ -19,6 +19,7 @@ public class ControladorPaisaje : MonoBehaviour
 
     private Vector2 posicionInicialCabina;
     private float avanceAcumulado;
+    private float posicionLateralCamino;
     private float desplazamientoHorizontal;
     private float multiplicadorFuerzaGiro = 1f;
     private float multiplicadorVibracion = 1f;
@@ -31,7 +32,7 @@ public class ControladorPaisaje : MonoBehaviour
     private float respuestaVolante = 1f;
     private float pulsoVelocidad;
     private float sacudidaCabina;
-    private float rotacionVolanteFiltrada;
+    private float entradaVolanteFiltrada;
     private float velocidadActual;
     private string nombreEfectoDecision = "";
 
@@ -42,33 +43,17 @@ public class ControladorPaisaje : MonoBehaviour
     public float VelocidadActual => velocidadActual;
     public float VelocidadMaximaVisual => Mathf.Max(1f, velocidadAuto * 1.5f);
 
-    // Posicion lateral del auto dentro del camino: -1 = borde izquierdo,
-    // 0 = centro y 1 = borde derecho. Los obstaculos la usan para calcular
-    // impactos sin depender de colliders fisicos en la interfaz.
-    public float PosicionLateralNormalizada
-    {
-        get
-        {
-            float limiteActual = limiteHorizontalCamino * multiplicadorLimiteCamino;
-            return limiteActual <= 0f ? 0f : Mathf.Clamp(desplazamientoHorizontal / limiteActual, -1f, 1f);
-        }
-    }
+    // Coordenada real del jugador sobre el camino: -1 izquierda, 0 centro, 1 derecha.
+    public float PosicionLateralNormalizada => posicionLateralCamino;
 
-    // Distancia total recorrida hacia adelante (sirve para saber si llegamos a casa).
     public float AvanceAcumulado => avanceAcumulado;
 
-    // Qué tan pegado al borde del camino está el auto (0 = centrado, 1 = contra el borde).
     public float DesvioNormalizado
     {
         get
         {
-            float limiteActual = limiteHorizontalCamino * multiplicadorLimiteCamino;
-            if (limiteActual <= 0f)
-            {
-                return 0f;
-            }
-
-            return Mathf.Clamp01(Mathf.Abs(desplazamientoHorizontal) / limiteActual);
+            float limite = ObtenerLimiteLateralActual();
+            return limite <= 0f ? 0f : Mathf.Clamp01(Mathf.Abs(posicionLateralCamino) / limite);
         }
     }
 
@@ -82,38 +67,34 @@ public class ControladorPaisaje : MonoBehaviour
             posicionInicialCabina = cabina.anchoredPosition;
         }
 
-        SincronizarCalles();
+        SincronizarRepresentacionVisual();
     }
 
     private void Update()
     {
-        if (volante == null || palanca == null || calle1 == null || calle2 == null)
+        if (volante == null || palanca == null)
         {
             velocidadActual = 0f;
             return;
         }
 
-        float factorMarcha = palanca.enMarchaAdelante ? 1f : -1f;
-        float rotacionVolante = Mathf.DeltaAngle(0f, volante.transform.eulerAngles.z);
-        rotacionVolanteFiltrada = Mathf.Lerp(rotacionVolanteFiltrada, rotacionVolante, Mathf.Clamp01(respuestaVolante * Time.deltaTime * 12f));
-        float rotacionBase = respuestaVolante >= 0.99f ? rotacionVolante : rotacionVolanteFiltrada;
-        float rotacionAfectada = CalcularRotacionAfectada(rotacionBase);
+        float factorMarcha = palanca.enMarchaAdelante ? 1f : -0.35f;
         float velocidadConPulso = velocidadAuto * multiplicadorVelocidad * CalcularPulsoVelocidad();
         velocidadActual = Mathf.Abs(velocidadConPulso);
-        float avanceFrame = velocidadConPulso * factorMarcha * Time.deltaTime;
-        float limiteActual = limiteHorizontalCamino * multiplicadorLimiteCamino;
+        avanceAcumulado += velocidadConPulso * factorMarcha * Time.deltaTime;
 
-        avanceAcumulado += avanceFrame;
-        desplazamientoHorizontal = Mathf.Clamp(
-            desplazamientoHorizontal + rotacionAfectada * fuerzaGiro * multiplicadorFuerzaGiro * factorMarcha * Time.deltaTime + CalcularDerivaFrame(),
-            -limiteActual,
-            limiteActual
+        float entradaVolante = CalcularEntradaVolante();
+        float limiteLateral = ObtenerLimiteLateralActual();
+        posicionLateralCamino = Mathf.Clamp(
+            posicionLateralCamino + entradaVolante * fuerzaGiro * multiplicadorFuerzaGiro * factorMarcha * Time.deltaTime + CalcularDerivaFrame(),
+            -limiteLateral,
+            limiteLateral
         );
 
-        ActualizarCaminoPerspectiva();
-        SincronizarCalles();
+        desplazamientoHorizontal = posicionLateralCamino * limiteHorizontalCamino;
 
-        VibrarCabina(rotacionAfectada);
+        SincronizarRepresentacionVisual();
+        VibrarCabina(entradaVolante);
         ActualizarEfectoDecision();
     }
 
@@ -136,12 +117,14 @@ public class ControladorPaisaje : MonoBehaviour
         derivaInvoluntaria = Mathf.Max(0f, nuevaDerivaInvoluntaria);
         oscilacionVolante = Mathf.Max(0f, nuevaOscilacionVolante);
         multiplicadorVelocidad = Mathf.Max(0f, nuevoMultiplicadorVelocidad);
-        multiplicadorLimiteCamino = Mathf.Max(0.1f, nuevoMultiplicadorLimiteCamino);
+        multiplicadorLimiteCamino = Mathf.Clamp(nuevoMultiplicadorLimiteCamino, 0.25f, 1.25f);
         respuestaVolante = Mathf.Max(0.02f, nuevaRespuestaVolante);
         pulsoVelocidad = Mathf.Max(0f, nuevoPulsoVelocidad);
         sacudidaCabina = Mathf.Max(0f, nuevaSacudidaCabina);
-        rotacionVolanteFiltrada = Mathf.DeltaAngle(0f, volante != null ? volante.transform.eulerAngles.z : 0f);
+        entradaVolanteFiltrada = volante != null ? volante.EntradaGiroNormalizada : 0f;
         nombreEfectoDecision = string.IsNullOrEmpty(nombreEfecto) ? "Control alterado" : nombreEfecto;
+
+        posicionLateralCamino = Mathf.Clamp(posicionLateralCamino, -ObtenerLimiteLateralActual(), ObtenerLimiteLateralActual());
 
         if (caminoPerspectiva != null)
         {
@@ -150,16 +133,19 @@ public class ControladorPaisaje : MonoBehaviour
         }
     }
 
-    private float CalcularRotacionAfectada(float rotacionVolante)
+    private float CalcularEntradaVolante()
     {
-        if (!HayEfectoDecision || oscilacionVolante <= 0f)
+        float entrada = volante != null ? volante.EntradaGiroNormalizada : 0f;
+        if (HayEfectoDecision && oscilacionVolante > 0f)
         {
-            return rotacionVolante;
+            float ruido = (Mathf.PerlinNoise(Time.time * 1.7f, 7.3f) - 0.5f) * oscilacionVolante / 90f;
+            float bamboleo = Mathf.Sin(Time.time * 5.5f) * oscilacionVolante / 180f;
+            entrada += ruido + bamboleo;
         }
 
-        float ruidoLento = (Mathf.PerlinNoise(Time.time * 1.7f, 7.3f) - 0.5f) * oscilacionVolante;
-        float bamboleo = Mathf.Sin(Time.time * 5.5f) * oscilacionVolante * 0.35f;
-        return rotacionVolante + ruidoLento + bamboleo;
+        entrada = Mathf.Clamp(entrada, -1f, 1f);
+        entradaVolanteFiltrada = Mathf.Lerp(entradaVolanteFiltrada, entrada, Mathf.Clamp01(respuestaVolante * Time.deltaTime * 12f));
+        return respuestaVolante >= 0.99f ? entrada : entradaVolanteFiltrada;
     }
 
     private float CalcularDerivaFrame()
@@ -170,7 +156,7 @@ public class ControladorPaisaje : MonoBehaviour
         }
 
         float direccion = Mathf.Sin(Time.time * 2.1f) + (Mathf.PerlinNoise(Time.time * 1.2f, 11f) - 0.5f);
-        return direccion * derivaInvoluntaria * Time.deltaTime;
+        return direccion * derivaInvoluntaria * 0.004f * Time.deltaTime;
     }
 
     private float CalcularPulsoVelocidad()
@@ -184,6 +170,11 @@ public class ControladorPaisaje : MonoBehaviour
         return Mathf.Max(0.1f, 1f + pulso * pulsoVelocidad);
     }
 
+    private float ObtenerLimiteLateralActual()
+    {
+        return Mathf.Clamp(multiplicadorLimiteCamino, 0.25f, 1f);
+    }
+
     private void ActualizarEfectoDecision()
     {
         if (!HayEfectoDecision)
@@ -192,43 +183,48 @@ public class ControladorPaisaje : MonoBehaviour
         }
 
         tiempoEfectoDecision -= Time.deltaTime;
-
-        if (tiempoEfectoDecision <= 0f)
+        if (tiempoEfectoDecision > 0f)
         {
-            tiempoEfectoDecision = 0f;
-            duracionEfectoDecision = 0f;
-            multiplicadorFuerzaGiro = 1f;
-            multiplicadorVibracion = 1f;
-            derivaInvoluntaria = 0f;
-            oscilacionVolante = 0f;
-            multiplicadorVelocidad = 1f;
-            multiplicadorLimiteCamino = 1f;
-            respuestaVolante = 1f;
-            pulsoVelocidad = 0f;
-            sacudidaCabina = 0f;
-            nombreEfectoDecision = "";
-
-            if (caminoPerspectiva != null)
-            {
-                caminoPerspectiva.SetModoSuperficie(false);
-            }
-
-            if (cabina != null)
-            {
-                cabina.anchoredPosition = posicionInicialCabina;
-            }
+            return;
         }
-    }
 
-    private void ActualizarCaminoPerspectiva()
-    {
+        tiempoEfectoDecision = 0f;
+        duracionEfectoDecision = 0f;
+        multiplicadorFuerzaGiro = 1f;
+        multiplicadorVibracion = 1f;
+        derivaInvoluntaria = 0f;
+        oscilacionVolante = 0f;
+        multiplicadorVelocidad = 1f;
+        multiplicadorLimiteCamino = 1f;
+        respuestaVolante = 1f;
+        pulsoVelocidad = 0f;
+        sacudidaCabina = 0f;
+        nombreEfectoDecision = "";
+
         if (caminoPerspectiva != null)
         {
-            caminoPerspectiva.ActualizarMovimiento(avanceAcumulado, desplazamientoHorizontal);
+            caminoPerspectiva.SetModoSuperficie(false);
+        }
+
+        if (cabina != null)
+        {
+            cabina.anchoredPosition = posicionInicialCabina;
         }
     }
 
-    private void SincronizarCalles()
+    private void SincronizarRepresentacionVisual()
+    {
+        float desplazamientoVisual = -desplazamientoHorizontal;
+
+        if (caminoPerspectiva != null)
+        {
+            caminoPerspectiva.ActualizarMovimiento(avanceAcumulado, desplazamientoVisual);
+        }
+
+        SincronizarCalles(desplazamientoVisual);
+    }
+
+    private void SincronizarCalles(float desplazamientoVisual)
     {
         if (altoCalle <= 0f || calle1 == null || calle2 == null)
         {
@@ -243,11 +239,11 @@ public class ControladorPaisaje : MonoBehaviour
         }
 
         float yBase = -Mathf.Repeat(avanceAcumulado, altoCalle);
-        calle1.anchoredPosition = new Vector2(desplazamientoHorizontal, yBase);
-        calle2.anchoredPosition = new Vector2(desplazamientoHorizontal, yBase + altoCalle);
+        calle1.anchoredPosition = new Vector2(desplazamientoVisual, yBase);
+        calle2.anchoredPosition = new Vector2(desplazamientoVisual, yBase + altoCalle);
     }
 
-    private void VibrarCabina(float rotacionVolante)
+    private void VibrarCabina(float entradaVolante)
     {
         if (cabina == null || (intensidadVibracionCabina <= 0f && !HayEfectoDecision))
         {
@@ -262,8 +258,7 @@ public class ControladorPaisaje : MonoBehaviour
 
         float ruido = Mathf.PerlinNoise(Time.time * 12f, 0f) - 0.5f;
         float sacudida = HayEfectoDecision ? Mathf.Sin(Time.time * 22f) * sacudidaCabina : 0f;
-        float giroNormalizado = Mathf.Clamp(rotacionVolante / 90f, -1f, 1f);
-        Vector2 vibracion = new Vector2(giroNormalizado * 2f + sacudida * 0.35f, ruido * intensidadBase * multiplicadorVibracion + sacudida);
+        Vector2 vibracion = new Vector2(entradaVolante * 2f + sacudida * 0.35f, ruido * intensidadBase * multiplicadorVibracion + sacudida);
         cabina.anchoredPosition = posicionInicialCabina + vibracion;
     }
 }
